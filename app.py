@@ -23,7 +23,7 @@ class Product(db.Model):
 @app.route('/api/products', methods=['GET'])
 def get_products():
     products = Product.query.all()
-    return {'products': [{'name': product.name, 'price': product.price, 'description': product.description} for product in products]}
+    return {'products': [{'name': product.name, 'price': product.price} for product in products]}
 
 @app.route('/api/products/<int:id>', methods=['GET'])
 def get_product(id):
@@ -53,6 +53,7 @@ def delete_products():
     return "This item does not exist!", 404
 
 @app.route('/api/products/update/<int:id>', methods=['PUT'])
+
 def update_products(id):
     product = Product.query.get_or_404(id)
     data = request.json
@@ -68,7 +69,6 @@ def update_products(id):
 
     db.session.commit()
     return "Data updated successfully!", 200
-    return "This item does not exist!", 400
 
 @app.route('/')
 def index():

@@ -1,12 +1,22 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
-from flask_login import UserMixin
+from flask_login import UserMixin, LoginManager, login_user, logout_user, login_required
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = "minha_chave_123" # Replace this with your own secret key
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///ecommerce.db'
 
+#This is the method that manages the login process behind the scenes 
+login_manager= LoginManager()
+
 db = SQLAlchemy(app)
+
+#Inserted the login manager into the app
+login_manager.init_app(app)
+
+#The page to redirect users to if they are
+login_manager.login_view = 'login' 
 CORS(app)
 
 class User(db.Model, UserMixin):
@@ -20,6 +30,27 @@ class Product(db.Model):
     price = db.Column(db.Float, nullable=False)
     description = db.Column(db.Text, nullable=False)
 
+#This method is used to load a user id from the database
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.json
+    user = User.query.filter_by(username=data.get("username")).first()
+    if user and user.password == data.get("password"):
+        login_user(user)
+        return jsonify({'message': 'Login successful!'}), 200
+    return jsonify({'message': 'Login failed!'}), 401
+
+
+@app.route('/logout', methods=['POST'])
+@login_required
+def logout():
+    logout_user()
+    return jsonify({'message': 'Logout successful!'}), 200
+
 @app.route('/api/products', methods=['GET'])
 def get_products():
     products = Product.query.all()
@@ -32,7 +63,9 @@ def get_product(id):
         return {'id': product.id, 'name': product.name, 'price': product.price, 'description': product.description}
     return {'message': '404 Item Not Found'}
 
+
 @app.route('/api/products/add', methods=['POST'])
+@login_required
 def add_products():
     data = request.json
     if 'name' in data and 'price' in data:
@@ -43,6 +76,7 @@ def add_products():
     return "This item already exists!", 400
 
 @app.route('/api/products/delete', methods=['DELETE'])
+@login_required
 def delete_products():
     data = request.json
     if 'name' in data:
@@ -53,7 +87,7 @@ def delete_products():
     return "This item does not exist!", 404
 
 @app.route('/api/products/update/<int:id>', methods=['PUT'])
-
+@login_required
 def update_products(id):
     product = Product.query.get_or_404(id)
     data = request.json
